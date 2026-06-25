@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Visorías — Pali / Maxi Pali</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --navy: #0f1f3d;
+    --navy-mid: #1a3260;
+    --navy-light: #243d73;
+    --gold: #c9a84c;
+    --gold-light: #e8c97a;
+    --gold-pale: #f5e9c8;
+    --white: #ffffff;
+    --surface: #f7f8fc;
+    --surface2: #eef0f7;
+    --text: #0f1f3d;
+    --text-sec: #4a5578;
+    --text-ter: #8a94b0;
+    --green: #2d7d46;
+    --green-bg: #e6f4eb;
+    --amber: #8a5800;
+    --amber-bg: #fef3dc;
+    --red: #9b2020;
+    --red-bg: #fdeaea;
+    --border: rgba(15,31,61,0.1);
+    --radius: 10px;
+    --radius-lg: 14px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--surface); color: var(--text); min-height: 100vh; }
+
+  /* HEADER */
+  .header {
+    background: var(--navy);
+    padding: 1.25rem 2rem;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem; flex-wrap: wrap;
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .header-logo {
+    width: 40px; height: 40px; border-radius: 8px;
+    background: var(--gold); display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 700; color: var(--navy); letter-spacing: -1px;
+  }
+  .header-title { color: var(--white); }
+  .header-title h1 { font-size: 17px; font-weight: 600; }
+  .header-title p { font-size: 12px; color: rgba(255,255,255,0.55); margin-top: 1px; }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  .last-update { font-size: 11px; color: rgba(255,255,255,0.5); }
+  .btn-refresh {
+    background: var(--gold); color: var(--navy); border: none; border-radius: 6px;
+    padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer; transition: opacity .15s;
+  }
+  .btn-refresh:hover { opacity: .85; }
+
+  /* MAIN */
+  .main { max-width: 1200px; margin: 0 auto; padding: 1.5rem 1.5rem 3rem; }
+
+  /* FILTERS */
+  .filters {
+    background: var(--white); border: 0.5px solid var(--border);
+    border-radius: var(--radius); padding: 0.9rem 1.25rem;
+    display: flex; gap: 1.25rem; align-items: center; flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+  }
+  .filter-group { display: flex; align-items: center; gap: 7px; }
+  .filter-group label { font-size: 12px; color: var(--text-sec); font-weight: 500; }
+  .filter-group select {
+    font-size: 12px; padding: 5px 10px; border-radius: 6px;
+    border: 0.5px solid var(--border); background: var(--surface); color: var(--text);
+    cursor: pointer;
+  }
+  .filter-sep { width: 1px; height: 20px; background: var(--border); }
+
+  /* SECTION LABEL */
+  .section-label {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
+    color: var(--text-ter); text-transform: uppercase;
+    margin: 1.5rem 0 0.6rem;
+  }
+
+  /* KPI GRID */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .kpi {
+    background: var(--white); border: 0.5px solid var(--border);
+    border-radius: var(--radius); padding: 1rem 1.1rem;
+    border-top: 3px solid var(--navy);
+  }
+  .kpi.gold { border-top-color: var(--gold); }
+  .kpi-label { font-size: 11px; color: var(--text-sec); margin-bottom: 5px; }
+  .kpi-val { font-size: 26px; font-weight: 700; color: var(--navy); line-height: 1; }
+  .kpi-val.good { color: var(--green); }
+  .kpi-val.warn { color: var(--amber); }
+  .kpi-val.bad  { color: var(--red); }
+  .kpi-sub { font-size: 11px; color: var(--text-ter); margin-top: 4px; }
+
+  /* CARDS */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .card {
+    background: var(--white); border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg); padding: 1.1rem 1.25rem;
+  }
+  .card-title { font-size: 13px; font-weight: 600; color: var(--navy); margin-bottom: 12px; }
+  .full { grid-column: 1 / -1; }
+
+  /* LEGEND */
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+  .leg { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-sec); }
+  .ld { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+  /* INDICATOR CARDS */
+  .ind-card {
+    background: var(--white); border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg); padding: 1.1rem 1.25rem;
+  }
+  .ind-icon { font-size: 20px; margin-bottom: 6px; }
+  .ind-title { font-size: 12px; color: var(--text-sec); margin-bottom: 8px; font-weight: 500; }
+  .ind-num { font-size: 30px; font-weight: 700; line-height: 1; }
+  .ind-denom { font-size: 14px; font-weight: 400; color: var(--text-ter); }
+  .prog-bar { height: 7px; border-radius: 4px; background: var(--surface2); margin: 10px 0 5px; overflow: hidden; }
+  .prog-fill { height: 100%; border-radius: 4px; transition: width .4s ease; }
+  .ind-pct { font-size: 11px; color: var(--text-ter); }
+
+  /* TABLE */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th {
+    text-align: left; padding: 7px 10px;
+    color: var(--text-sec); font-weight: 600; font-size: 11px;
+    border-bottom: 0.5px solid var(--border); white-space: nowrap;
+    background: var(--surface);
+  }
+  td { padding: 7px 10px; border-bottom: 0.5px solid var(--border); color: var(--text); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface); }
+
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 5px;
+    font-size: 11px; font-weight: 600;
+  }
+  .b-pali { background: #deeeff; color: #0c3d7a; }
+  .b-maxi { background: #fff0d4; color: #6b3e00; }
+  .b-good { background: var(--green-bg); color: var(--green); }
+  .b-warn { background: var(--amber-bg); color: var(--amber); }
+  .b-bad  { background: var(--red-bg);   color: var(--red); }
+
+  .avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; flex-shrink: 0;
+  }
+  .visor-cell { display: flex; align-items: center; gap: 8px; }
+
+  /* LOADING / ERROR */
+  .status-box {
+    text-align: center; padding: 4rem 2rem;
+    color: var(--text-sec); font-size: 14px;
+  }
+  .spinner {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 3px solid var(--surface2); border-top-color: var(--navy);
+    animation: spin .8s linear infinite; margin: 0 auto 1rem;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 700px) {
+    .grid2, .grid3 { grid-template-columns: 1fr; }
+    .header { padding: 1rem; }
+    .main { padding: 1rem 1rem 3rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="header-logo">VP</div>
+    <div class="header-title">
+      <h1>Visorías PDV — Pali / Maxi Pali</h1>
+      <p>Seguimiento de ejecución en punto de venta · Costa Rica</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="last-update" id="lastUpdate">Cargando...</span>
+    <button class="btn-refresh" onclick="loadData()">↻ Actualizar</button>
+  </div>
+</div>
+
+<div class="main">
+
+  <div id="loadingBox" class="status-box">
+    <div class="spinner"></div>
+    Cargando datos del formulario...
+  </div>
+
+  <div id="content" style="display:none">
+
+    <div class="filters">
+      <div class="filter-group">
+        <label>Semana</label>
+        <select id="fSemana" onchange="renderAll()"><option value="">Todas</option></select>
+      </div>
+      <div class="filter-sep"></div>
+      <div class="filter-group">
+        <label>Formato</label>
+        <select id="fFormato" onchange="renderAll()">
+          <option value="">Todos</option>
+          <option value="Pali">Pali</option>
+          <option value="Maxi Pali">Maxi Pali</option>
+        </select>
+      </div>
+      <div class="filter-sep"></div>
+      <div class="filter-group">
+        <label>Visora</label>
+        <select id="fVisor" onchange="renderAll()"><option value="">Todas</option></select>
+      </div>
+    </div>
+
+    <div class="kpi-grid" id="kpis"></div>
+
+    <p class="section-label">Indicadores de ejecución</p>
+    <div class="grid3" id="indicadores"></div>
+
+    <p class="section-label">Visitas diarias por visora</p>
+    <div class="card full">
+      <div class="legend" id="legDiario"></div>
+      <div style="position:relative;height:220px"><canvas id="cDiario" role="img" aria-label="Visitas diarias por visora"></canvas></div>
+    </div>
+
+    <p class="section-label">Resumen por visora</p>
+    <div class="card full">
+      <div class="table-wrap">
+        <table id="tVisoras">
+          <thead><tr>
+            <th>Visora</th>
+            <th style="text-align:center">Visitas<br>semana</th>
+            <th style="text-align:center">Total</th>
+            <th style="text-align:center">Habladores<br>actualizados</th>
+            <th style="text-align:center">Con<br>faltantes</th>
+            <th style="text-align:center">Banderas<br>ejecutadas</th>
+            <th style="text-align:center">Orden<br>prom.</th>
+            <th style="text-align:center">Planograma<br>prom.</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <p class="section-label">Distribución</p>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">Visitas por día de la semana</div>
+        <div style="position:relative;height:190px"><canvas id="cDias" role="img" aria-label="Visitas por día de la semana"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Formato por semana</div>
+        <div class="legend">
+          <span class="leg"><span class="ld" style="background:#1a6fc4"></span>Pali</span>
+          <span class="leg"><span class="ld" style="background:#c9a84c"></span>Maxi Pali</span>
+        </div>
+        <div style="position:relative;height:190px"><canvas id="cSemFmt" role="img" aria-label="Visitas por formato y semana"></canvas></div>
+      </div>
+    </div>
+
+    <p class="section-label">Detalle por visita</p>
+    <div class="card full">
+      <div class="table-wrap">
+        <table id="tDetalle">
+          <thead><tr>
+            <th>Tienda</th><th>Formato</th><th>Visora</th><th>Fecha</th>
+            <th style="text-align:center">Orden</th>
+            <th style="text-align:center">Planograma</th>
+            <th style="text-align:center">Habladores</th>
+            <th style="text-align:center">Faltantes</th>
+            <th style="text-align:center">Banderas</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<script>
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRY2qvRe60dGPk0UtNqTsz9ry-r59XhtGLKAgHwLcmEl157tNuBURyYOryqk9ixN8Fftp6533UW_C3s/pub?gid=2122820517&single=true&output=csv';
+
+const PALETTE = ['#1a6fc4','#2d7d46','#c9a84c','#9b2020','#534AB7','#0F6E56','#D85A30','#3C3489'];
+const AV_BG   = ['#deeeff','#e6f4eb','#fff0d4','#fdeaea','#EEEDFE','#E1F5EE','#FAECE7','#e8e6f8'];
+
+let allData = [];
+let charts = {};
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const c = lines[i].split(',');
+    if (c.length < 10) continue;
+    const rawDate = c[2]?.trim() || c[0]?.trim();
+    const ts = parseDate(rawDate);
+    if (!ts) continue;
+    rows.push({
+      ts,
+      visor: normVisor(c[1]?.trim() || ''),
+      tienda: c[4]?.trim() || '',
+      formato: c[5]?.trim() || '',
+      orden: parseInt(c[7]) || 0,
+      plano: parseInt(c[8]) || 0,
+      habl: c[9]?.trim() || '',
+      falt: c[10]?.trim() || '',
+      band: c[11]?.trim() || '',
+      equipo: c[12]?.trim() || '',
+    });
+  }
+  return rows;
+}
+
+function parseDate(s) {
+  if (!s) return null;
+  const m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m) return `${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
+  const m2 = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (m2) return s.slice(0,10);
+  return null;
+}
+
+function normVisor(s) {
+  return s.replace(/\d+$/, '').trim()
+    .split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+}
+
+function getWeek(ts) {
+  const d = new Date(ts + 'T12:00:00');
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  const mon = new Date(d); mon.setDate(diff);
+  return mon.toISOString().slice(0,10);
+}
+
+function fmtWeek(w) {
+  const d = new Date(w + 'T12:00:00');
+  const end = new Date(d); end.setDate(end.getDate() + 6);
+  return `${d.getDate()}/${d.getMonth()+1} – ${end.getDate()}/${end.getMonth()+1}`;
+}
+
+function fmtDate(ts) {
+  const [y,m,d] = ts.split('-');
+  return `${d}/${m}`;
+}
+
+function avg(arr, key) {
+  if (!arr.length) return 0;
+  return arr.reduce((s,d) => s + d[key], 0) / arr.length;
+}
+
+function pct(arr, key, val) {
+  if (!arr.length) return 0;
+  return Math.round(arr.filter(d => d[key] === val).length / arr.length * 100);
+}
+
+function initials(name) {
+  return name.split(' ').slice(0,2).map(w => w[0] || '').join('').toUpperCase();
+}
+
+function getFiltered() {
+  const sem = document.getElementById('fSemana').value;
+  const fmt = document.getElementById('fFormato').value;
+  const vis = document.getElementById('fVisor').value;
+  return allData.filter(d =>
+    (!sem || getWeek(d.ts) === sem) &&
+    (!fmt || d.formato === fmt) &&
+    (!vis || d.visor === vis)
+  );
+}
+
+function initFilters() {
+  const visors = [...new Set(allData.map(d => d.visor))].sort();
+  const weeks  = [...new Set(allData.map(d => getWeek(d.ts)))].sort();
+
+  const sv = document.getElementById('fVisor');
+  sv.innerHTML = '<option value="">Todas</option>';
+  visors.forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; sv.appendChild(o); });
+
+  const sw = document.getElementById('fSemana');
+  sw.innerHTML = '<option value="">Todas</option>';
+  weeks.forEach(w => { const o = document.createElement('option'); o.value = w; o.textContent = fmtWeek(w); sw.appendChild(o); });
+}
+
+function dc(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+function semColor(v) { return v >= 4 ? '#2d7d46' : v >= 3 ? '#8a5800' : '#9b2020'; }
+function pctColor(p, invert) { return invert ? (p <= 30 ? '#2d7d46' : p <= 50 ? '#8a5800' : '#9b2020') : (p >= 70 ? '#2d7d46' : p >= 50 ? '#8a5800' : '#9b2020'); }
+function badgeClass(v, max5) { return max5 ? (v>=4?'b-good':v>=3?'b-warn':'b-bad') : (v>=70?'b-good':v>=50?'b-warn':'b-bad'); }
+
+function renderKPIs(d) {
+  const weeks = [...new Set(d.map(x => getWeek(x.ts)))].sort();
+  const lw = weeks[weeks.length-1] || '';
+  const thisWeek = d.filter(x => getWeek(x.ts) === lw);
+  const dates = [...new Set(d.map(x => x.ts))].sort();
+  const lastDate = dates[dates.length-1] || '';
+  const today = d.filter(x => x.ts === lastDate);
+
+  document.getElementById('kpis').innerHTML = `
+    <div class="kpi"><div class="kpi-label">Total visitas</div><div class="kpi-val">${d.length}</div><div class="kpi-sub">periodo seleccionado</div></div>
+    <div class="kpi gold"><div class="kpi-label">Semana actual</div><div class="kpi-val">${thisWeek.length}</div><div class="kpi-sub">${fmtWeek(lw)}</div></div>
+    <div class="kpi"><div class="kpi-label">Último día</div><div class="kpi-val">${today.length}</div><div class="kpi-sub">${lastDate ? fmtDate(lastDate) : '–'}</div></div>
+    <div class="kpi"><div class="kpi-label">Orden modular prom.</div><div class="kpi-val" style="color:${semColor(avg(d,'orden'))}">${avg(d,'orden').toFixed(1)}<span style="font-size:14px;font-weight:400;color:#8a94b0">/5</span></div></div>
+    <div class="kpi"><div class="kpi-label">Planograma prom.</div><div class="kpi-val" style="color:${semColor(avg(d,'plano'))}">${avg(d,'plano').toFixed(1)}<span style="font-size:14px;font-weight:400;color:#8a94b0">/5</span></div></div>
+    <div class="kpi"><div class="kpi-label">Tiendas visitadas</div><div class="kpi-val">${new Set(d.map(x=>x.tienda)).size}</div><div class="kpi-sub">únicas</div></div>
+  `;
+}
+
+function renderIndicadores(d) {
+  const total = d.length || 1;
+  const habl = d.filter(x => x.habl === 'Si').length;
+  const falt = d.filter(x => x.falt === 'Si').length;
+  const band = d.filter(x => x.band === 'Si').length;
+  const ph = Math.round(habl/total*100);
+  const pf = Math.round(falt/total*100);
+  const pb = Math.round(band/total*100);
+
+  document.getElementById('indicadores').innerHTML = `
+    <div class="ind-card">
+      <div class="ind-icon">🗣</div>
+      <div class="ind-title">Habladores actualizados</div>
+      <div class="ind-num" style="color:${pctColor(ph,false)}">${habl}<span class="ind-denom"> / ${total}</span></div>
+      <div class="prog-bar"><div class="prog-fill" style="width:${ph}%;background:${pctColor(ph,false)}"></div></div>
+      <div class="ind-pct">${ph}% de cumplimiento</div>
+    </div>
+    <div class="ind-card">
+      <div class="ind-icon">⚠️</div>
+      <div class="ind-title">Tiendas con faltantes</div>
+      <div class="ind-num" style="color:${pctColor(pf,true)}">${falt}<span class="ind-denom"> / ${total}</span></div>
+      <div class="prog-bar"><div class="prog-fill" style="width:${pf}%;background:${pctColor(pf,true)}"></div></div>
+      <div class="ind-pct">${pf}% de visitas reportan faltante</div>
+    </div>
+    <div class="ind-card">
+      <div class="ind-icon">🚩</div>
+      <div class="ind-title">Banderas ejecutadas</div>
+      <div class="ind-num" style="color:${pctColor(pb,false)}">${band}<span class="ind-denom"> / ${total}</span></div>
+      <div class="prog-bar"><div class="prog-fill" style="width:${pb}%;background:${pctColor(pb,false)}"></div></div>
+      <div class="ind-pct">${pb}% de cumplimiento</div>
+    </div>
+  `;
+}
+
+function renderDiario(d) {
+  const dates  = [...new Set(d.map(x => x.ts))].sort();
+  const visors = [...new Set(d.map(x => x.visor))].sort();
+  const datasets = visors.map((v,i) => ({
+    label: v.split(' ')[0],
+    data: dates.map(dt => d.filter(x => x.ts === dt && x.visor === v).length),
+    backgroundColor: PALETTE[i % PALETTE.length],
+    stack: 's'
+  }));
+  document.getElementById('legDiario').innerHTML = visors.map((v,i) =>
+    `<span class="leg"><span class="ld" style="background:${PALETTE[i%PALETTE.length]}"></span>${v.split(' ')[0]}</span>`
+  ).join('');
+  dc('d');
+  charts.d = new Chart(document.getElementById('cDiario'), {
+    type: 'bar',
+    data: { labels: dates.map(fmtDate), datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { stacked: true, ticks: { font: { size: 11 } } },
+        y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+function renderTablaVisoras(d) {
+  const visors = [...new Set(d.map(x => x.visor))].sort();
+  const weeks  = [...new Set(d.map(x => getWeek(x.ts)))].sort();
+  const lw = weeks[weeks.length-1] || '';
+  const tbody = document.querySelector('#tVisoras tbody');
+  tbody.innerHTML = visors.map((v,i) => {
+    const all = d.filter(x => x.visor === v);
+    const sem = all.filter(x => getWeek(x.ts) === lw);
+    const habl = all.filter(x => x.habl === 'Si').length;
+    const falt = all.filter(x => x.falt === 'Si').length;
+    const band = all.filter(x => x.band === 'Si').length;
+    const o = avg(all,'orden').toFixed(1);
+    const p = avg(all,'plano').toFixed(1);
+    const ph = Math.round(habl/all.length*100);
+    const pf = Math.round(falt/all.length*100);
+    const pb = Math.round(band/all.length*100);
+    return `<tr>
+      <td><div class="visor-cell">
+        <div class="avatar" style="background:${AV_BG[i%AV_BG.length]};color:${PALETTE[i%PALETTE.length]}">${initials(v)}</div>
+        <span>${v}</span>
+      </div></td>
+      <td style="text-align:center;font-weight:700">${sem.length}</td>
+      <td style="text-align:center">${all.length}</td>
+      <td style="text-align:center"><span class="badge ${ph>=70?'b-good':ph>=50?'b-warn':'b-bad'}">${habl}/${all.length} (${ph}%)</span></td>
+      <td style="text-align:center"><span class="badge ${pf<=30?'b-good':pf<=50?'b-warn':'b-bad'}">${falt}/${all.length} (${pf}%)</span></td>
+      <td style="text-align:center"><span class="badge ${pb>=70?'b-good':pb>=50?'b-warn':'b-bad'}">${band}/${all.length} (${pb}%)</span></td>
+      <td style="text-align:center"><span class="badge ${o>=4?'b-good':o>=3?'b-warn':'b-bad'}">${o}/5</span></td>
+      <td style="text-align:center"><span class="badge ${p>=4?'b-good':p>=3?'b-warn':'b-bad'}">${p}/5</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderDias(d) {
+  const DIAS = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+  const counts = DIAS.map((_,i) => d.filter(x => {
+    const day = new Date(x.ts + 'T12:00:00').getDay();
+    return day === (i+1) % 7;
+  }).length);
+  const max = Math.max(...counts);
+  dc('dias');
+  charts.dias = new Chart(document.getElementById('cDias'), {
+    type: 'bar',
+    data: {
+      labels: DIAS,
+      datasets: [{ data: counts, backgroundColor: counts.map(c => c===max?'#0f1f3d':'#b5d4f4'), borderSkipped: false }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 } } }, x: { ticks: { font: { size: 11 } } } }
+    }
+  });
+}
+
+function renderSemFmt(d) {
+  const weeks = [...new Set(d.map(x => getWeek(x.ts)))].sort();
+  dc('sf');
+  charts.sf = new Chart(document.getElementById('cSemFmt'), {
+    type: 'bar',
+    data: {
+      labels: weeks.map(fmtWeek),
+      datasets: [
+        { label: 'Pali', data: weeks.map(w => d.filter(x=>getWeek(x.ts)===w&&x.formato==='Pali').length), backgroundColor: '#1a6fc4', stack: 's' },
+        { label: 'Maxi Pali', data: weeks.map(w => d.filter(x=>getWeek(x.ts)===w&&x.formato==='Maxi Pali').length), backgroundColor: '#c9a84c', stack: 's' }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { x: { stacked: true, ticks: { font: { size: 10 } } }, y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 } } } }
+    }
+  });
+}
+
+function renderDetalle(d) {
+  const rows = [...d].sort((a,b) => b.ts.localeCompare(a.ts));
+  document.querySelector('#tDetalle tbody').innerHTML = rows.map(r => `<tr>
+    <td>${r.tienda}</td>
+    <td><span class="badge ${r.formato==='Pali'?'b-pali':'b-maxi'}">${r.formato}</span></td>
+    <td>${r.visor}</td>
+    <td>${fmtDate(r.ts)}</td>
+    <td style="text-align:center"><span class="badge ${r.orden>=4?'b-good':r.orden>=3?'b-warn':'b-bad'}">${r.orden}/5</span></td>
+    <td style="text-align:center"><span class="badge ${r.plano>=4?'b-good':r.plano>=3?'b-warn':'b-bad'}">${r.plano}/5</span></td>
+    <td style="text-align:center;color:${r.habl==='Si'?'#2d7d46':'#9b2020'}">${r.habl==='Si'?'✓ Sí':'✗ No'}</td>
+    <td style="text-align:center;color:${r.falt==='Si'?'#9b2020':'#2d7d46'}">${r.falt==='Si'?'⚠ Sí':'✓ No'}</td>
+    <td style="text-align:center;color:${r.band==='Si'?'#2d7d46':'#9b2020'}">${r.band==='Si'?'✓ Sí':'✗ No'}</td>
+  </tr>`).join('');
+}
+
+function renderAll() {
+  const d = getFiltered();
+  renderKPIs(d);
+  renderIndicadores(d);
+  renderDiario(d);
+  renderTablaVisoras(d);
+  renderDias(d);
+  renderSemFmt(d);
+  renderDetalle(d);
+}
+
+async function loadData() {
+  document.getElementById('loadingBox').style.display = 'block';
+  document.getElementById('content').style.display = 'none';
+  document.getElementById('lastUpdate').textContent = 'Actualizando...';
+
+  try {
+    const res = await fetch(CSV_URL + '&t=' + Date.now());
+    if (!res.ok) throw new Error('Error al cargar el CSV');
+    const text = await res.text();
+    allData = parseCSV(text);
+    if (!allData.length) throw new Error('No se encontraron datos');
+
+    initFilters();
+    document.getElementById('loadingBox').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+
+    const now = new Date();
+    document.getElementById('lastUpdate').textContent =
+      `Actualizado: ${now.toLocaleDateString('es-CR')} ${now.toLocaleTimeString('es-CR',{hour:'2-digit',minute:'2-digit'})}`;
+
+    renderAll();
+  } catch(e) {
+    document.getElementById('loadingBox').innerHTML =
+      `<p style="color:#9b2020">⚠️ No se pudo cargar el Sheet.<br><small>${e.message}</small></p>
+       <button class="btn-refresh" onclick="loadData()" style="margin-top:1rem">Reintentar</button>`;
+  }
+}
+
+loadData();
+</script>
+</body>
+</html>
