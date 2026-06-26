@@ -189,18 +189,40 @@ const AVB=['#deeeff','#e6f4eb','#fff0d4','#fdeaea','#EEEDFE','#E1F5EE','#FAECE7'
 let allData=[];
 let charts={};
 
+function parseCSVLine(line){
+  // Handles fields with commas inside quotes
+  const result=[];
+  let cur='', inQ=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(ch==='"'){
+      if(inQ&&line[i+1]==='"'){cur+='"';i++;}
+      else inQ=!inQ;
+    } else if(ch===','&&!inQ){
+      result.push(cur.trim());cur='';
+    } else cur+=ch;
+  }
+  result.push(cur.trim());
+  return result;
+}
 function parseCSV(txt){
   const lines=txt.trim().split('\n');
   const rows=[];
   for(let i=1;i<lines.length;i++){
-    const c=lines[i].split(',');
+    let line=lines[i].trim();
+    if(!line)continue;
+    // unwrap outer quotes if present (Google Sheets wraps rows containing commas)
+    if(line.startsWith('"')&&line.endsWith('"'))line=line.slice(1,-1).replace(/""/g,'"');
+    else if(line.startsWith('"'))line=line.slice(1).replace(/""/g,'"');
+    const c=parseCSVLine(line);
     if(c.length<10)continue;
-    const ts=parseDate(c[2]?.trim()||c[0]?.trim());
+    // col: 0=timestamp, 1=visor, 2=fecha, 3=#tienda, 4=nombre, 5=formato, 6=evidencia, 7=orden, 8=plano, 9=habl, 10=falt, 11=band, 12=equipo
+    const ts=parseDate(c[2]||c[0]);
     if(!ts)continue;
-    rows.push({ts,visor:normV(c[1]?.trim()||''),tienda_num:normTienda(c[3]?.trim()||''),
-      tienda:c[4]?.trim()||'',formato:c[5]?.trim()||'',
+    rows.push({ts,visor:normV(c[1]||''),tienda_num:normTienda(c[3]||''),
+      tienda:c[4]||'',formato:c[5]||'',
       orden:parseInt(c[7])||0,plano:parseInt(c[8])||0,
-      habl:c[9]?.trim()||'',falt:c[10]?.trim()||'',band:c[11]?.trim()||''});
+      habl:c[9]||'',falt:c[10]||'',band:c[11]||''});
   }
   return rows;
 }
