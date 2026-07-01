@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Visorías — Pali / Maxi Pali</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --navy:#0f1f3d;--navy-mid:#1a3260;--gold:#c9a84c;--gold-light:#e8c97a;
+    --white:#ffffff;--surface:#f7f8fc;--surface2:#eef0f7;
+    --text:#0f1f3d;--text-sec:#4a5578;--text-ter:#8a94b0;
+    --green:#2d7d46;--green-bg:#e6f4eb;--amber:#8a5800;--amber-bg:#fef3dc;
+    --red:#9b2020;--red-bg:#fdeaea;--border:rgba(15,31,61,0.1);
+    --radius:10px;--radius-lg:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--surface);color:var(--text);min-height:100vh;}
+  .header{background:var(--navy);padding:1.25rem 2rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;}
+  .header-left{display:flex;align-items:center;gap:14px;}
+  .header-logo{width:40px;height:40px;border-radius:8px;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:var(--navy);}
+  .header-title h1{font-size:17px;font-weight:600;color:#fff;}
+  .header-title p{font-size:12px;color:rgba(255,255,255,0.5);margin-top:1px;}
+  .last-update{font-size:11px;color:rgba(255,255,255,0.5);}
+  .btn-refresh{background:var(--gold);color:var(--navy);border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;}
+  .btn-refresh:hover{opacity:.85;}
+  .main{max-width:1200px;margin:0 auto;padding:1.5rem 1.5rem 3rem;}
+  .filters{background:var(--white);border:0.5px solid var(--border);border-radius:var(--radius);padding:.9rem 1.25rem;display:flex;gap:1.25rem;align-items:center;flex-wrap:wrap;margin-bottom:1.25rem;}
+  .fg{display:flex;align-items:center;gap:7px;}
+  .fg label{font-size:12px;color:var(--text-sec);font-weight:500;}
+  .fg select{font-size:12px;padding:5px 10px;border-radius:6px;border:0.5px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;}
+  .fsep{width:1px;height:20px;background:var(--border);}
+  .slabel{font-size:10px;font-weight:600;letter-spacing:.08em;color:var(--text-ter);text-transform:uppercase;margin:1.5rem 0 .6rem;}
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;}
+  .kpi{background:var(--white);border:0.5px solid var(--border);border-radius:var(--radius);padding:1rem 1.1rem;border-top:3px solid var(--navy);}
+  .kpi.gold{border-top-color:var(--gold);}
+  .kpi.green{border-top-color:var(--green);}
+  .kpi.red{border-top-color:var(--red);}
+  .kpi-label{font-size:11px;color:var(--text-sec);margin-bottom:5px;}
+  .kpi-val{font-size:24px;font-weight:700;color:var(--navy);line-height:1;}
+  .kpi-val.good{color:var(--green);} .kpi-val.warn{color:var(--amber);} .kpi-val.bad{color:var(--red);}
+  .kpi-sub{font-size:11px;color:var(--text-ter);margin-top:4px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+  .card{background:var(--white);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1.1rem 1.25rem;}
+  .card-title{font-size:13px;font-weight:600;color:var(--navy);margin-bottom:12px;}
+  .full{grid-column:1/-1;}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px;}
+  .leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-sec);}
+  .ld{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
+  .ind-card{background:var(--white);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1.1rem 1.25rem;}
+  .ind-title{font-size:12px;color:var(--text-sec);margin-bottom:8px;font-weight:500;}
+  .ind-num{font-size:30px;font-weight:700;line-height:1;}
+  .ind-denom{font-size:14px;font-weight:400;color:var(--text-ter);}
+  .prog-bar{height:7px;border-radius:4px;background:var(--surface2);margin:10px 0 5px;overflow:hidden;}
+  .prog-fill{height:100%;border-radius:4px;transition:width .4s ease;}
+  .ind-pct{font-size:11px;color:var(--text-ter);}
+  .table-wrap{overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;font-size:12px;}
+  th{text-align:left;padding:7px 10px;color:var(--text-sec);font-weight:600;font-size:11px;border-bottom:0.5px solid var(--border);white-space:nowrap;background:var(--surface);}
+  td{padding:6px 10px;border-bottom:0.5px solid var(--border);color:var(--text);vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  tr:hover td{background:var(--surface);}
+  .badge{display:inline-block;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600;}
+  .b-pali{background:#deeeff;color:#0c3d7a;} .b-maxi{background:#fff0d4;color:#6b3e00;}
+  .b-good{background:var(--green-bg);color:var(--green);} .b-warn{background:var(--amber-bg);color:var(--amber);} .b-bad{background:var(--red-bg);color:var(--red);}
+  .avatar{width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+  .vc{display:flex;align-items:center;gap:8px;}
+  .status-box{text-align:center;padding:4rem 2rem;color:var(--text-sec);font-size:14px;}
+  .spinner{width:32px;height:32px;border-radius:50%;border:3px solid var(--surface2);border-top-color:var(--navy);animation:spin .8s linear infinite;margin:0 auto 1rem;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .tabs{display:flex;gap:4px;margin-bottom:1rem;border-bottom:1px solid var(--border);}
+  .tab{padding:8px 16px;font-size:12px;font-weight:500;color:var(--text-sec);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;}
+  .tab.active{color:var(--navy);border-bottom-color:var(--navy);}
+  .tab-panel{display:none;} .tab-panel.active{display:block;}
+  @media(max-width:700px){.grid2,.grid3{grid-template-columns:1fr;}.header{padding:1rem;}.main{padding:1rem 1rem 3rem;}}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-left">
+    <div class="header-logo">VP</div>
+    <div class="header-title">
+      <h1>Visorías PDV — Pali / Maxi Pali</h1>
+      <p>Seguimiento de ejecución en punto de venta · Costa Rica</p>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span class="last-update" id="lastUpdate">Cargando...</span>
+    <button class="btn-refresh" onclick="loadData()">↻ Actualizar</button>
+  </div>
+</div>
+
+<div class="main">
+  <div id="loadingBox" class="status-box"><div class="spinner"></div>Cargando datos del formulario...</div>
+  <div id="content" style="display:none">
+
+    <div class="filters">
+      <div class="fg"><label>Semana</label><select id="fSemana" onchange="renderAll()"><option value="">Todas</option></select></div>
+      <div class="fsep"></div>
+      <div class="fg"><label>Fecha</label><select id="fDia" onchange="renderAll()"><option value="">Todas</option></select></div>
+      <div class="fsep"></div>
+      <div class="fg"><label>Formato</label><select id="fFormato" onchange="renderAll()"><option value="">Todos</option><option value="Pali">Pali</option><option value="Maxi Pali">Maxi Pali</option></select></div>
+      <div class="fsep"></div>
+      <div class="fg"><label>Visora</label><select id="fVisor" onchange="renderAll()"><option value="">Todas</option></select></div>
+      <div class="fsep"></div>
+      <div class="fg"><label># Tienda</label><select id="fTienda" onchange="renderAll()"><option value="">Todas</option></select></div>
+    </div>
+
+    <div class="kpi-grid" id="kpis"></div>
+
+    <div class="tabs" style="margin-top:1.5rem;">
+      <div class="tab active" onclick="switchTab('ejecucion',this)">Ejecución PDV</div>
+      <div class="tab" onclick="switchTab('cumplimiento',this)">Cumplimiento vs Meta</div>
+      <div class="tab" onclick="switchTab('efectividad',this)">Efectividad Diaria</div>
+      <div class="tab" onclick="switchTab('tiendas',this)">Tiendas sin visita</div>
+    </div>
+
+    <!-- TAB 1: Ejecución -->
+    <div id="tab-ejecucion" class="tab-panel active">
+      <div class="grid3" id="indicadores"></div>
+      <p class="slabel" style="margin-top:1.2rem;">Visitas diarias por visora</p>
+      <div class="card full">
+        <div class="legend" id="legDiario"></div>
+        <div style="position:relative;height:220px"><canvas id="cDiario" role="img" aria-label="Visitas diarias por visora"></canvas></div>
+      </div>
+      <p class="slabel">Resumen por visora</p>
+      <div class="card full">
+        <div class="table-wrap">
+          <table id="tVisoras">
+            <thead><tr>
+              <th>Visora</th><th style="text-align:center">Semana<br>actual</th><th style="text-align:center">Total</th>
+              <th style="text-align:center">Habladores</th><th style="text-align:center">Faltantes</th>
+              <th style="text-align:center">Banderas</th><th style="text-align:center">Orden</th><th style="text-align:center">Plano.</th><th style="text-align:center">Score</th>
+            </tr></thead><tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: Cumplimiento vs Meta -->
+    <div id="tab-cumplimiento" class="tab-panel">
+      <div class="grid2" style="margin-bottom:12px;">
+        <div class="card">
+          <div class="card-title">Visitas realizadas vs meta — por visora</div>
+          <div class="legend"><span class="leg"><span class="ld" style="background:#0f1f3d"></span>Realizadas</span><span class="leg"><span class="ld" style="background:#c9a84c"></span>Meta</span></div>
+          <div style="position:relative;height:260px"><canvas id="cMeta" role="img" aria-label="Visitas vs meta por visora"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">% Cumplimiento por visora</div>
+          <div style="position:relative;height:260px"><canvas id="cCumpl" role="img" aria-label="Porcentaje de cumplimiento por visora"></canvas></div>
+        </div>
+      </div>
+      <div class="card full">
+        <div class="card-title">Detalle de cumplimiento por visora</div>
+        <div class="table-wrap">
+          <table id="tCumpl">
+            <thead><tr>
+              <th>Visora</th><th style="text-align:center">Tiendas asignadas</th>
+              <th style="text-align:center">Visitas esta semana</th><th style="text-align:center">Meta semanal</th>
+              <th style="text-align:center">Cumplimiento</th><th style="text-align:center">Tiendas visitadas</th><th style="text-align:center">Score</th>
+            </tr></thead><tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: Efectividad Diaria -->
+    <div id="tab-efectividad" class="tab-panel">
+      <div class="card full" id="efectividadCard">
+        <div class="card-title">Efectividad de visitas por día — realizadas vs programadas</div>
+        <div class="legend">
+          <span class="leg"><span class="ld" style="background:#0f1f3d"></span>Efectividad %</span>
+          <span class="leg"><span class="ld" style="background:#c9a84c"></span>Meta</span>
+          <span class="leg"><span class="ld" style="background:#2d7d46"></span>Realizadas</span>
+        </div>
+        <div style="position:relative;height:240px"><canvas id="cEfect" role="img" aria-label="Efectividad diaria"></canvas></div>
+      </div>
+      <div class="card full" style="margin-top:12px">
+        <div class="card-title">Detalle por día</div>
+        <div class="table-wrap">
+          <table id="tEfectividad">
+            <thead><tr>
+              <th>Fecha</th>
+              <th style="text-align:center">Programadas</th>
+              <th style="text-align:center">Realizadas</th>
+              <th style="text-align:center">Efectividad</th>
+              <th style="text-align:center">Estado</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: Tiendas sin visita -->
+    <div id="tab-tiendas" class="tab-panel">
+      <div class="card full">
+        <div class="card-title" id="tSinVisitaTitle">Tiendas sin visita esta semana</div>
+        <div class="table-wrap">
+          <table id="tSinVisita">
+            <thead><tr>
+              <th>#</th><th>Tienda</th><th>Visora asignada</th><th style="text-align:center">Día asignado</th><th style="text-align:center">Frecuencia</th>
+            </tr></thead><tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const CSV_URL='https://docs.google.com/spreadsheets/d/e/2PACX-1vRY2qvRe60dGPk0UtNqTsz9ry-r59XhtGLKAgHwLcmEl157tNuBURyYOryqk9ixN8Fftp6533UW_C3s/pub?gid=2122820517&single=true&output=csv';
+
+// METAS — cargadas del Excel (# tienda como clave)
+const CARTOLA=[{"codigo":"2000030139","tienda_num":"718","visora":"Alberto Bonilla","nombre":"Maxi Pali Aserri","semana_tipo":"Semanal","dia":"J"},{"codigo":"2600004094","tienda_num":"3098","visora":"Alberto Bonilla","nombre":"Pali Aserri Abajo","semana_tipo":"Semanal","dia":"J"},{"codigo":"2000025927","tienda_num":"743","visora":"Alberto Bonilla","nombre":"Palí Barrio Corazon De Jesus","semana_tipo":"Semanal","dia":"J"},{"codigo":"2600003990","tienda_num":"4028","visora":"Alberto Bonilla","nombre":"Pali Tirrases","semana_tipo":"Semanal","dia":"L"},{"codigo":"2600003808","tienda_num":"3900","visora":"Alberto Bonilla","nombre":"Maxi Bodega Desamparados","semana_tipo":"Semanal","dia":"J"},{"codigo":"2000040095","tienda_num":"930","visora":"Alberto Bonilla","nombre":"Maxi Pali Los Guidos","semana_tipo":"Semanal","dia":"S"},{"codigo":"2600003973","tienda_num":"3092","visora":"Alberto Bonilla","nombre":"Pali San Miguel Desamparados","semana_tipo":"Semanal","dia":"M"},{"codigo":"2600003798","tienda_num":"4471","visora":"Elaniner Fernandez","nombre":"Pali Carrillos","semana_tipo":"Semanal","dia":"J"},{"codigo":"2600003864","tienda_num":"4004","visora":"Elaniner Fernandez","nombre":"Maxi Mercado Grecia","semana_tipo":"Semanal","dia":"K"},{"codigo":"2600003869","tienda_num":"3057","visora":"Elaniner Fernandez","nombre":"Pali Grecia","semana_tipo":"Semanal","dia":"K"},{"codigo":"2000023457","tienda_num":"717","visora":"Elaniner Fernandez","nombre":"Maxi Pali Naranjo","semana_tipo":"Semanal","dia":"J"},{"codigo":"2600004093","tienda_num":"3095","visora":"Elaniner Fernandez","nombre":"Pali Naranjo","semana_tipo":"Semanal","dia":"J"},{"codigo":"2600003951","tienda_num":"3119","visora":"Elaniner Fernandez","nombre":"Maxi Pali Palmares","semana_tipo":"Semanal","dia":"J"},{"codigo":"2600003790","tienda_num":"4031","visora":"Elaniner Fernandez","nombre":"Maxi Pali San Ramon","semana_tipo":"Semanal","dia":"V"},{"codigo":"2600004088","tienda_num":"3068","visora":"Elaniner Fernandez","nombre":"Pali San Ramon","semana_tipo":"Semanal","dia":"L"},{"codigo":"2600003982","tienda_num":"3118","visora":"Glen Miranda","nombre":"Pali El Alto","semana_tipo":"Semanal","dia":"J"},{"codigo":"2600003836","tienda_num":"3048","visora":"Glen Miranda","nombre":"Maxi Pali Guadalupe","semana_tipo":"Semanal","dia":"V"},{"codigo":"2600004095","tienda_num":"3061","visora":"Glen Miranda","nombre":"Pali Guadalupe","semana_tipo":"Semanal","dia":"L"},{"codigo":"2600004002","tienda_num":"4202","visora":"Glen Miranda","nombre":"Pali Mata De Platano","semana_tipo":"Semanal","dia":"M"},{"codigo":"2600004000","tienda_num":"4193","visora":"Glen Miranda","nombre":"Pali San Rafael De Montes De Oca","semana_tipo":"Semanal","dia":"J"},{"codigo":"2000061459","tienda_num":"981","visora":"Israel Anderson","nombre":"Maxi Pali San Antonio Escazu","semana_tipo":"Semanal","dia":"M"},{"codigo":"2600004096","tienda_num":"3103","visora":"Israel Anderson","nombre":"Pali Escazu","semana_tipo":"Semanal","dia":"V"},{"codigo":"2600004067","tienda_num":"4383","visora":"Israel Anderson","nombre":"Maxi Pali Pavas","semana_tipo":"Semanal","dia":"J"},{"codigo":"2600003818","tienda_num":"3080","visora":"Israel Anderson","nombre":"Pali Pavas","semana_tipo":"Semanal","dia":"J"},{"codigo":"2600004106","tienda_num":"3138","visora":"Israel Anderson","nombre":"Pali Lomas De Pavas","semana_tipo":"Semanal","dia":"J"},{"codigo":"2600004087","tienda_num":"3081","visora":"Jaqueline Rivera","nombre":"Pali Lourdes","semana_tipo":"Semanal","dia":"J"},{"codigo":"2600004003","tienda_num":"4219","visora":"Jaqueline Rivera","nombre":"Pali Plaza Viquez","semana_tipo":"Semanal","dia":"M"},{"codigo":"2600004105","tienda_num":"3137","visora":"Jaqueline Rivera","nombre":"Pali Paseo Colon","semana_tipo":"Semanal","dia":"J"},{"codigo":"2600003954","tienda_num":"3021","visora":"Jaqueline Rivera","nombre":"Pali Cuesta Moras","semana_tipo":"Semanal","dia":"J"},{"codigo":"2600003947","tienda_num":"4340","visora":"Karina Molina","nombre":"Maxi Pali Orotina","semana_tipo":"Semanal","dia":"K"},{"codigo":"2600003914","tienda_num":"3126","visora":"Karina Molina","nombre":"Pali Orotina","semana_tipo":"Semanal","dia":"J"},{"codigo":"2000082570","tienda_num":"1064","visora":"Lindrey Lopez","nombre":"Maxi Pali Curridabat","semana_tipo":"Semanal","dia":"M"},{"codigo":"2600003969","tienda_num":"3077","visora":"Lindrey Lopez","nombre":"Pali Tres Rios","semana_tipo":"Semanal","dia":"V"},{"codigo":"2600003822","tienda_num":"4085","visora":"Lindrey Lopez","nombre":"Pali Concepcion De Tres Rios","semana_tipo":"Semanal","dia":"S"},{"codigo":"2600004007","tienda_num":"4467","visora":"Lindrey Lopez","nombre":"Pali San Diego De Tres Rios","semana_tipo":"Semanal","dia":"M"},{"codigo":"2000035694","tienda_num":"806","visora":"Melany Guzman","nombre":"Maxi Pali Santa Ana","semana_tipo":"Semanal","dia":"K"},{"codigo":"2600003794","tienda_num":"3097","visora":"Melany Guzman","nombre":"Pali Santa Ana","semana_tipo":"Semanal","dia":"K"},{"codigo":"2600004119","tienda_num":"4197","visora":"Melany Guzman","nombre":"Pali Piedades De Santa Ana","semana_tipo":"Semanal","dia":"S"},{"codigo":"2600003843","tienda_num":"4084","visora":"Millar Castro","nombre":"Pali San Isidro De Heredia","semana_tipo":"Semanal","dia":"V"},{"codigo":"2000062438","tienda_num":"978","visora":"Millar Castro","nombre":"Maxi Pali San Pablo Heredia","semana_tipo":"Semanal","dia":"K"},{"codigo":"2000071101","tienda_num":"3053","visora":"Millar Castro","nombre":"Pali San Luis Santo Domingo Heredia","semana_tipo":"Semanal","dia":"S"},{"codigo":"2600003809","tienda_num":"4194","visora":"Millar Castro","nombre":"Maxi Bodega Tibas","semana_tipo":"Semanal","dia":"K"},{"codigo":"2600004082","tienda_num":"3079","visora":"Millar Castro","nombre":"Pali Colima","semana_tipo":"Semanal","dia":"K"},{"codigo":"2600003856","tienda_num":"4425","visora":"Millar Castro","nombre":"Pali Cuatro Reinas","semana_tipo":"Semanal","dia":"L"},{"codigo":"2000023858","tienda_num":"738","visora":"Sugey Granado","nombre":"Pali Tobosi","semana_tipo":"Semanal","dia":"K"},{"codigo":"2600004068","tienda_num":"4432","visora":"Sugey Granado","nombre":"Maxi Pali Oreamuno","semana_tipo":"Semanal","dia":"J"},{"codigo":"2600003875","tienda_num":"3136","visora":"Sugey Granado","nombre":"Pali Coot","semana_tipo":"Semanal","dia":"S"},{"codigo":"2600004092","tienda_num":"3106","visora":"Yamileth Carmona","nombre":"Pali Parada","semana_tipo":"Semanal","dia":"J"},{"codigo":"2600004114","tienda_num":"3121","visora":"Yamileth Carmona","nombre":"Pali Barrio San Jose","semana_tipo":"Semanal","dia":"L"},{"codigo":"2600003897","tienda_num":"3901","visora":"Yamileth Carmona","nombre":"Maxi Bodega Alajuela","semana_tipo":"Semanal","dia":"M"},{"codigo":"2600003816","tienda_num":"3112","visora":"Yamileth Carmona","nombre":"Maxi Pali Pacifico Alajuela","semana_tipo":"Semanal","dia":"M"},{"codigo":"2600003777","tienda_num":"3139","visora":"Yamileth Carmona","nombre":"Pali Poas","semana_tipo":"Semanal","dia":"S"},{"codigo":"2600004062","tienda_num":"4099","visora":"Yulieth Barrantes","nombre":"Maxi Bodega Turrialba","semana_tipo":"Semanal","dia":"M"},{"codigo":"2000033324","tienda_num":"793","visora":"Yulieth Barrantes","nombre":"Maxi Pali Turrialba Norte","semana_tipo":"Semanal","dia":"M"},{"codigo":"2600004091","tienda_num":"3076","visora":"Yulieth Barrantes","nombre":"Pali Turrialba","semana_tipo":"Semanal","dia":"M"},{"codigo":"2000031453","tienda_num":"786","visora":"Yulieth Barrantes","nombre":"Pali La Suiza","semana_tipo":"Semanal","dia":"J"},{"codigo":"2600003908","tienda_num":"3084","visora":"Guillermo Pacheco","nombre":"Pali El Llano","semana_tipo":"Semana 1","dia":"L"},{"codigo":"2000053115","tienda_num":"939","visora":"Guillermo Pacheco","nombre":"Maxi Pali Alajuela Este","semana_tipo":"Semana 1","dia":"L"},{"codigo":"2600003876","tienda_num":"4047","visora":"Guillermo Pacheco","nombre":"Pali Desamparados Alajuela","semana_tipo":"Semana 1","dia":"L"},{"codigo":"2600003916","tienda_num":"4024","visora":"Guillermo Pacheco","nombre":"Pali Ciruelas De Alajuela","semana_tipo":"Semana 1","dia":"L"},{"codigo":"2600004123","tienda_num":"4282","visora":"Guillermo Pacheco","nombre":"Pali El Roble De Alajuela","semana_tipo":"Semana 1","dia":"L"},{"codigo":"2000034343","tienda_num":"778","visora":"Guillermo Pacheco","nombre":"Maxi Pali Montecillos","semana_tipo":"Semana 1","dia":"L"},{"codigo":"2600004086","tienda_num":"3086","visora":"Guillermo Pacheco","nombre":"Pali Villa Bonita","semana_tipo":"Semana 1","dia":"K"},{"codigo":"2000055530","tienda_num":"919","visora":"Guillermo Pacheco","nombre":"Pali La Guácima","semana_tipo":"Semana 1","dia":"K"},{"codigo":"2000055552","tienda_num":"968","visora":"Guillermo Pacheco","nombre":"Pali Turrucares","semana_tipo":"Semana 1","dia":"K"},{"codigo":"2600003849","tienda_num":"4435","visora":"Guillermo Pacheco","nombre":"Maxi San Rafael De Alajuela","semana_tipo":"Semana 1","dia":"K"},{"codigo":"2600003796","tienda_num":"4027","visora":"Guillermo Pacheco","nombre":"Pali San Rafael De Alajuela","semana_tipo":"Semana 1","dia":"K"},{"codigo":"2600003918","tienda_num":"4107","visora":"Guillermo Pacheco","nombre":"Pali Coyol","semana_tipo":"Semana 1","dia":"K"},{"codigo":"2600004069","tienda_num":"4461","visora":"Guillermo Pacheco","nombre":"Maxi Pali Santa Barbara","semana_tipo":"Semana 1","dia":"M"},{"codigo":"2600003988","tienda_num":"3142","visora":"Guillermo Pacheco","nombre":"Pali Santa Barbara","semana_tipo":"Semana 1","dia":"M"},{"codigo":"2600003853","tienda_num":"3120","visora":"Guillermo Pacheco","nombre":"Pali San Joaquin","semana_tipo":"Semana 1","dia":"M"},{"codigo":"2600003909","tienda_num":"3090","visora":"Guillermo Pacheco","nombre":"Pali Belen","semana_tipo":"Semana 1","dia":"M"},{"codigo":"2600003871","tienda_num":"3091","visora":"Guillermo Pacheco","nombre":"Pali Barva","semana_tipo":"Semana 1","dia":"M"},{"codigo":"2000081300","tienda_num":"1008","visora":"Guillermo Pacheco","nombre":"Maxi Pali San Rafael Heredia","semana_tipo":"Semana 1","dia":"M"},{"codigo":"2600003820","tienda_num":"3145","visora":"Guillermo Pacheco","nombre":"Pali San Rafael De Heredia","semana_tipo":"Semana 1","dia":"M"},{"codigo":"2600003900","tienda_num":"4318","visora":"Guillermo Pacheco","nombre":"Maxi Pali Mercedes Norte","semana_tipo":"Semana 1","dia":"J"},{"codigo":"2600003815","tienda_num":"3089","visora":"Guillermo Pacheco","nombre":"Pali La Aurora","semana_tipo":"Semana 1","dia":"J"},{"codigo":"2000061460","tienda_num":"988","visora":"Guillermo Pacheco","nombre":"Maxi Pali Lagunilla Heredia","semana_tipo":"Semana 1","dia":"J"},{"codigo":"2600003819","tienda_num":"3134","visora":"Guillermo Pacheco","nombre":"Pali Los Lagos Heredia","semana_tipo":"Semana 1","dia":"J"},{"codigo":"2600003842","tienda_num":"3063","visora":"Guillermo Pacheco","nombre":"Pali Heredia","semana_tipo":"Semana 1","dia":"J"},{"codigo":"2600003978","tienda_num":"3102","visora":"Guillermo Pacheco","nombre":"Pali Unicentro","semana_tipo":"Semana 1","dia":"J"},{"codigo":"2600003851","tienda_num":"3115","visora":"Guillermo Pacheco","nombre":"Pali Heredia Centro","semana_tipo":"Semana 1","dia":"J"},{"codigo":"2600003910","tienda_num":"3071","visora":"Guillermo Pacheco","nombre":"Pali Calle Blancos","semana_tipo":"Semana 1","dia":"V"},{"codigo":"2600003970","tienda_num":"3075","visora":"Guillermo Pacheco","nombre":"Pali Ipis","semana_tipo":"Semana 1","dia":"V"},{"codigo":"2600003999","tienda_num":"4135","visora":"Guillermo Pacheco","nombre":"Pali Purral","semana_tipo":"Semana 1","dia":"V"},{"codigo":"2000040092","tienda_num":"834","visora":"Guillermo Pacheco","nombre":"Pali Amelias","semana_tipo":"Semana 1","dia":"V"},{"codigo":"2600003834","tienda_num":"3082","visora":"Guillermo Pacheco","nombre":"Pali San Blas","semana_tipo":"Semana 1","dia":"S"},{"codigo":"2600004097","tienda_num":"3104","visora":"Guillermo Pacheco","nombre":"Pali Coronado","semana_tipo":"Semana 1","dia":"S"},{"codigo":"2600003994","tienda_num":"4064","visora":"Guillermo Pacheco","nombre":"Pali San Antonio De Coronado","semana_tipo":"Semana 1","dia":"S"},{"codigo":"2000028613","tienda_num":"733","visora":"Guillermo Pacheco","nombre":"Maxi Pali Coronado","semana_tipo":"Semana 1","dia":"S"},{"codigo":"2600004065","tienda_num":"4283","visora":"Guillermo Pacheco","nombre":"Maxi Pali Alajuelita","semana_tipo":"Semana 2","dia":"L"},{"codigo":"2600003963","tienda_num":"3070","visora":"Guillermo Pacheco","nombre":"Pali Alajuelita","semana_tipo":"Semana 2","dia":"L"},{"codigo":"2600004103","tienda_num":"3133","visora":"Guillermo Pacheco","nombre":"Pali San Felipe","semana_tipo":"Semana 2","dia":"L"},{"codigo":"2600003985","tienda_num":"3132","visora":"Guillermo Pacheco","nombre":"Pali Concepcion Alajuelita","semana_tipo":"Semana 2","dia":"L"},{"codigo":"2600004066","tienda_num":"4350","visora":"Guillermo Pacheco","nombre":"Maxi Pali San Rafael Abajo","semana_tipo":"Semana 2","dia":"L"},{"codigo":"2600003873","tienda_num":"3111","visora":"Guillermo Pacheco","nombre":"Maxi Pali San Rafael Abajo Centro","semana_tipo":"Semana 2","dia":"L"},{"codigo":"2600004084","tienda_num":"3113","visora":"Guillermo Pacheco","nombre":"Pali Desamparados Centro","semana_tipo":"Semana 2","dia":"K"},{"codigo":"2000077289","tienda_num":"3072","visora":"Guillermo Pacheco","nombre":"Pali Desamparados Este","semana_tipo":"Semana 2","dia":"K"},{"codigo":"2000038761","tienda_num":"924","visora":"Guillermo Pacheco","nombre":"Pa Patarra","semana_tipo":"Semana 2","dia":"K"},{"codigo":"2600003971","tienda_num":"3088","visora":"Guillermo Pacheco","nombre":"Pali Fatima","semana_tipo":"Semana 2","dia":"K"},{"codigo":"2600003782","tienda_num":"4284","visora":"Guillermo Pacheco","nombre":"Maxi Pali San Francisco Dos Rios","semana_tipo":"Semana 2","dia":"K"},{"codigo":"2600003810","tienda_num":"4402","visora":"Guillermo Pacheco","nombre":"Maxi Pali Hatillo","semana_tipo":"Semana 2","dia":"M"},{"codigo":"2600003793","tienda_num":"3083","visora":"Guillermo Pacheco","nombre":"Pali La Verbena","semana_tipo":"Semana 2","dia":"M"},{"codigo":"2600003957","tienda_num":"3022","visora":"Guillermo Pacheco","nombre":"Maxi Pali Hatillo CC","semana_tipo":"Semana 2","dia":"M"},{"codigo":"2600003967","tienda_num":"3052","visora":"Guillermo Pacheco","nombre":"Pali San Sebastian","semana_tipo":"Semana 2","dia":"M"},{"codigo":"2600003783","tienda_num":"3060","visora":"Guillermo Pacheco","nombre":"Pali Cartago","semana_tipo":"Semana 2","dia":"J"},{"codigo":"2600003902","tienda_num":"4469","visora":"Guillermo Pacheco","nombre":"Maxi Pali Agua Caliente","semana_tipo":"Semana 2","dia":"J"},{"codigo":"2600003968","tienda_num":"3087","visora":"Guillermo Pacheco","nombre":"Pali Los Angeles","semana_tipo":"Semana 2","dia":"J"},{"codigo":"2600004102","tienda_num":"3131","visora":"Guillermo Pacheco","nombre":"Pali Taras","semana_tipo":"Semana 2","dia":"J"},{"codigo":"2600003976","tienda_num":"3100","visora":"Guillermo Pacheco","nombre":"Pali Pitahaya","semana_tipo":"Semana 2","dia":"V"},{"codigo":"2600003899","tienda_num":"4214","visora":"Guillermo Pacheco","nombre":"Maxi Paraiso","semana_tipo":"Semana 2","dia":"V"},{"codigo":"2600004089","tienda_num":"3078","visora":"Guillermo Pacheco","nombre":"Pali Paraiso","semana_tipo":"Semana 2","dia":"V"},{"codigo":"2600003837","tienda_num":"3123","visora":"Guillermo Pacheco","nombre":"Pali Santa Lucia","semana_tipo":"Semana 2","dia":"V"},{"codigo":"2600003983","tienda_num":"3122","visora":"Guillermo Pacheco","nombre":"Pali Tejar","semana_tipo":"Semana 2","dia":"V"}];
+
+const PAL=['#0f1f3d','#2d7d46','#c9a84c','#9b2020','#534AB7','#0F6E56','#D85A30','#3C3489','#854F0B','#185FA5','#D4537E','#1D9E75','#888780'];
+const AVB=['#deeeff','#e6f4eb','#fff0d4','#fdeaea','#EEEDFE','#E1F5EE','#FAECE7','#e8e6f8','#FAEEDA','#E6F1FB','#FBEAF0','#E1F5EE','#F1EFE8'];
+
+let allData=[];
+let charts={};
+
+function parseCSV(txt){
+  const rows=[];
+  const lines=txt.split('\n');
+  let i=1;
+  while(i<lines.length){
+    let line=lines[i].trim();
+    i++;
+    if(!line)continue;
+    const fields=[];
+    let cur='',inQ=false,j=0;
+    while(j<line.length){
+      const ch=line[j];
+      if(ch==='"'){
+        if(inQ&&line[j+1]==='"'){cur+='"';j+=2;}
+        else{inQ=!inQ;j++;}
+      } else if(ch===','&&!inQ){fields.push(cur.trim());cur='';j++;}
+      else{cur+=ch;j++;}
+    }
+    fields.push(cur.trim());
+    if(fields.length<10)continue;
+    const ts=parseDate(fields[2]||fields[0]);
+    if(!ts)continue;
+    const visor=normV(fields[1]||'');
+    if(!visor||visor.length<2)continue;
+    rows.push({ts,visor,tienda_num:normTienda(fields[3]||''),
+      tienda:fields[4]||'',formato:fields[5]||'',
+      orden:parseInt(fields[7])||0,plano:parseInt(fields[8])||0,
+      habl:fields[9]||'',falt:fields[10]||'',band:fields[11]||''});
+  }
+  return rows;
+}
+function parseDate(s){
+  if(!s)return null;
+  const m=s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(m)return `${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
+  return s.slice(0,10);
+}
+function normV(s){return s.replace(/\d+$/,'').trim().split(' ').map(w=>w.charAt(0).toUpperCase()+w.slice(1).toLowerCase()).join(' ');}
+function normTienda(s){
+  // strip leading zeros and non-digits for matching
+  return s.replace(/^0+/,'').trim();
+}
+function getWeek(ts){
+  const d=new Date(ts+'T12:00:00');const day=d.getDay();
+  const diff=d.getDate()-day+(day===0?-6:1);
+  const mon=new Date(d);mon.setDate(diff);return mon.toISOString().slice(0,10);
+}
+function fmtWeek(w){
+  const d=new Date(w+'T12:00:00');const end=new Date(d);end.setDate(end.getDate()+6);
+  return `${d.getDate()}/${d.getMonth()+1} – ${end.getDate()}/${end.getMonth()+1}`;
+}
+function fmtDate(ts){const[y,m,d]=ts.split('-');return `${d}/${m}`;}
+function avg(arr,key){return arr.length?arr.reduce((s,d)=>s+d[key],0)/arr.length:0;}
+function pct(arr,key,val){return arr.length?Math.round(arr.filter(d=>d[key]===val).length/arr.length*100):0;}
+function initials(n){return n.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase();}
+function sc(v){return v>=4?'#2d7d46':v>=3?'#8a5800':'#9b2020';}
+function pc(p,inv){return inv?(p<=30?'#2d7d46':p<=50?'#8a5800':'#9b2020'):(p>=70?'#2d7d46':p>=50?'#8a5800':'#9b2020');}
+function bc(v,max5){return max5?(v>=4?'b-good':v>=3?'b-warn':'b-bad'):(v>=70?'b-good':v>=50?'b-warn':'b-bad');}
+
+// Score de ejecución: orden(30%) + planograma(20%) + habladores(20%) + sin_faltantes(20%) + banderas(10%)
+function calcScore(arr){
+  if(!arr.length)return null;
+  const o=avg(arr,'orden')/5*100;
+  const p=avg(arr,'plano')/5*100;
+  const h=pct(arr,'habl','Si');
+  const sf=pct(arr,'falt','No'); // sin faltantes = bueno
+  const b=pct(arr,'band','Si');
+  return Math.round(o*0.30 + p*0.20 + h*0.20 + sf*0.20 + b*0.10);
+}
+function scoreLabel(s){return s>=80?'Excelente':s>=65?'Bueno':s>=50?'Regular':'Por mejorar';}
+function scoreBadge(s){return s>=80?'b-good':s>=65?'b-good':s>=50?'b-warn':'b-bad';}
+function scoreColor(s){return s>=80?'#2d7d46':s>=65?'#2d7d46':s>=50?'#8a5800':'#9b2020';}
+
+function getFiltered(){
+  const sem=document.getElementById('fSemana').value;
+  const dia=document.getElementById('fDia').value;
+  const fmt=document.getElementById('fFormato').value;
+  const vis=document.getElementById('fVisor').value;
+  const tie=document.getElementById('fTienda').value;
+  return allData.filter(d=>
+    (!sem||getWeek(d.ts)===sem)&&
+    (!dia||d.ts===dia)&&
+    (!fmt||d.formato===fmt)&&
+    (!vis||d.visor===vis)&&
+    (!tie||d.tienda_num===tie)
+  );
+}
+
+function initFilters(){
+  const visors=[...new Set(allData.map(d=>d.visor))].sort();
+  const weeks=[...new Set(allData.map(d=>getWeek(d.ts)))].sort();
+  const tiendas=[...new Set(allData.map(d=>d.tienda_num))].sort((a,b)=>parseInt(a)-parseInt(b));
+  const sv=document.getElementById('fVisor');
+  sv.innerHTML='<option value="">Todas</option>';
+  visors.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;sv.appendChild(o);});
+  const sw=document.getElementById('fSemana');
+  sw.innerHTML='<option value="">Todas</option>';
+  weeks.forEach(w=>{const o=document.createElement('option');o.value=w;o.textContent=fmtWeek(w);sw.appendChild(o);});
+  const st=document.getElementById('fTienda');
+  st.innerHTML='<option value="">Todas</option>';
+  tiendas.forEach(t=>{
+    const nombre=allData.find(d=>d.tienda_num===t)?.tienda||'';
+    const o=document.createElement('option');o.value=t;o.textContent=`${t} – ${nombre}`;st.appendChild(o);
+  });
+  const dates=[...new Set(allData.map(d=>d.ts))].sort();
+  const sd=document.getElementById('fDia');
+  sd.innerHTML='<option value="">Todas</option>';
+  dates.forEach(dt=>{
+    const[y,m,d]=dt.split('-');
+    const o=document.createElement('option');o.value=dt;o.textContent=`${d}/${m}/${y}`;sd.appendChild(o);
+  });
+}
+
+function dc(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+
+function renderKPIs(d){
+  const weeks=[...new Set(d.map(x=>getWeek(x.ts)))].sort();
+  const lw=weeks[weeks.length-1]||'';
+  const tw=d.filter(x=>getWeek(x.ts)===lw);
+  const dates=[...new Set(d.map(x=>x.ts))].sort();
+  const ld=dates[dates.length-1]||'';
+
+  // cumplimiento semana actual
+  const cartolaActiva=CARTOLA.filter(c=>c.semana_tipo==='Semanal'||c.semana_tipo===c.semana_tipo);
+  const metaSem=CARTOLA.filter(c=>c.semana_tipo==='Semanal').length;
+  const visitadasSem=new Set(tw.map(x=>x.tienda_num)).size;
+  const cumplPct=metaSem?Math.round(visitadasSem/metaSem*100):0;
+
+  const score=calcScore(d);
+  const scoreCard=score!==null?`<div class="kpi" style="border-top-color:${scoreColor(score)}"><div class="kpi-label">Score de ejecución</div><div class="kpi-val" style="color:${scoreColor(score)}">${score}<span style="font-size:13px;font-weight:400;color:var(--text-ter)">/100</span></div><div class="kpi-sub">${scoreLabel(score)}</div></div>`:'';
+  document.getElementById('kpis').innerHTML=`
+    <div class="kpi"><div class="kpi-label">Total visitas</div><div class="kpi-val">${d.length}</div><div class="kpi-sub">periodo</div></div>
+    <div class="kpi gold"><div class="kpi-label">Esta semana</div><div class="kpi-val">${tw.length}</div><div class="kpi-sub">${fmtWeek(lw)}</div></div>
+    <div class="kpi"><div class="kpi-label">Último día</div><div class="kpi-val">${d.filter(x=>x.ts===ld).length}</div><div class="kpi-sub">${ld?fmtDate(ld):'–'}</div></div>
+    <div class="kpi ${cumplPct>=80?'green':cumplPct>=60?'gold':'red'}"><div class="kpi-label">Tiendas visitadas</div><div class="kpi-val ${cumplPct>=80?'good':cumplPct>=60?'warn':'bad'}">${visitadasSem}<span style="font-size:13px;font-weight:400;color:var(--text-ter)">/${metaSem}</span></div><div class="kpi-sub">${cumplPct}% de meta semanal</div></div>
+    <div class="kpi"><div class="kpi-label">Habladores OK</div><div class="kpi-val" style="color:${pc(pct(d,'habl','Si'),false)}">${pct(d,'habl','Si')}%</div><div class="kpi-sub">${d.filter(x=>x.habl==='Si').length} de ${d.length}</div></div>
+    <div class="kpi"><div class="kpi-label">Con faltantes</div><div class="kpi-val" style="color:${pc(pct(d,'falt','Si'),true)}">${pct(d,'falt','Si')}%</div><div class="kpi-sub">${d.filter(x=>x.falt==='Si').length} tiendas</div></div>
+    ${scoreCard}
+  `;
+}
+
+function renderIndicadores(d){
+  const total=d.length||1;
+  const habl=d.filter(x=>x.habl==='Si').length;
+  const falt=d.filter(x=>x.falt==='Si').length;
+  const band=d.filter(x=>x.band==='Si').length;
+  const ph=Math.round(habl/total*100),pf=Math.round(falt/total*100),pb=Math.round(band/total*100);
+  document.getElementById('indicadores').innerHTML=`
+    <div class="ind-card"><div class="ind-title">🗣 Habladores actualizados</div>
+      <div class="ind-num" style="color:${pc(ph,false)}">${habl}<span class="ind-denom"> / ${total}</span></div>
+      <div class="prog-bar"><div class="prog-fill" style="width:${ph}%;background:${pc(ph,false)}"></div></div>
+      <div class="ind-pct">${ph}% cumplimiento</div></div>
+    <div class="ind-card"><div class="ind-title">⚠️ Tiendas con faltantes</div>
+      <div class="ind-num" style="color:${pc(pf,true)}">${falt}<span class="ind-denom"> / ${total}</span></div>
+      <div class="prog-bar"><div class="prog-fill" style="width:${pf}%;background:${pc(pf,true)}"></div></div>
+      <div class="ind-pct">${pf}% de visitas</div></div>
+    <div class="ind-card"><div class="ind-title">🚩 Banderas ejecutadas</div>
+      <div class="ind-num" style="color:${pc(pb,false)}">${band}<span class="ind-denom"> / ${total}</span></div>
+      <div class="prog-bar"><div class="prog-fill" style="width:${pb}%;background:${pc(pb,false)}"></div></div>
+      <div class="ind-pct">${pb}% cumplimiento</div></div>
+  `;
+}
+
+function renderDiario(d){
+  const dates=[...new Set(d.map(x=>x.ts))].sort();
+  const visors=[...new Set(d.map(x=>x.visor))].sort();
+  const datasets=visors.map((v,i)=>({label:v.split(' ')[0],data:dates.map(dt=>d.filter(x=>x.ts===dt&&x.visor===v).length),backgroundColor:PAL[i%PAL.length],stack:'s'}));
+  document.getElementById('legDiario').innerHTML=visors.map((v,i)=>`<span class="leg"><span class="ld" style="background:${PAL[i%PAL.length]}"></span>${v.split(' ')[0]}</span>`).join('');
+  dc('d');charts.d=new Chart(document.getElementById('cDiario'),{type:'bar',data:{labels:dates.map(fmtDate),datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{stacked:true,ticks:{font:{size:11}}},y:{stacked:true,beginAtZero:true,ticks:{stepSize:1,font:{size:11}}}}}});
+}
+
+function renderTablaVisoras(d){
+  const visors=[...new Set(d.map(x=>x.visor))].sort();
+  const weeks=[...new Set(d.map(x=>getWeek(x.ts)))].sort();
+  const lw=weeks[weeks.length-1]||'';
+  const tVisorasEl=document.querySelector('#tVisoras tbody');if(!tVisorasEl)return;
+  tVisorasEl.innerHTML=visors.map((v,i)=>{
+    const all=d.filter(x=>x.visor===v),sem=all.filter(x=>getWeek(x.ts)===lw);
+    const habl=all.filter(x=>x.habl==='Si').length,falt=all.filter(x=>x.falt==='Si').length,band=all.filter(x=>x.band==='Si').length;
+    const ph=Math.round(habl/all.length*100),pf=Math.round(falt/all.length*100),pb=Math.round(band/all.length*100);
+    const o=avg(all,'orden').toFixed(1),p=avg(all,'plano').toFixed(1);
+    return `<tr><td><div class="vc"><div class="avatar" style="background:${AVB[i%AVB.length]};color:${PAL[i%PAL.length]}">${initials(v)}</div><span>${v}</span></div></td>
+      <td style="text-align:center;font-weight:700">${sem.length}</td><td style="text-align:center">${all.length}</td>
+      <td style="text-align:center"><span class="badge ${bc(ph,false)}">${habl}/${all.length} (${ph}%)</span></td>
+      <td style="text-align:center"><span class="badge ${bc(pf,false)?'':''} ${pf<=30?'b-good':pf<=50?'b-warn':'b-bad'}">${falt}/${all.length} (${pf}%)</span></td>
+      <td style="text-align:center"><span class="badge ${bc(pb,false)}">${band}/${all.length} (${pb}%)</span></td>
+      <td style="text-align:center"><span class="badge ${o>=4?'b-good':o>=3?'b-warn':'b-bad'}">${o}/5</span></td>
+      <td style="text-align:center"><span class="badge ${p>=4?'b-good':p>=3?'b-warn':'b-bad'}">${p}/5</span></td>
+      <td style="text-align:center"><span class="badge ${scoreBadge(calcScore(all))}">${calcScore(all)}/100</span></td></tr>`;
+  }).join('');
+}
+
+// Returns week number within month (1-5) based on Monday of the week
+// ceil(mondayDayOfMonth / 7): week1=days1-7, week2=8-14, week3=15-21, week4=22-28, week5=29+
+function weekOfMonth(ts){
+  const d=new Date(ts+'T12:00:00');
+  const jsDay=d.getDay(); // 0=Sun,1=Mon...6=Sat
+  const daysFromMon=jsDay===0?6:jsDay-1; // days since Monday
+  const monDate=d.getDate()-daysFromMon;
+  return Math.ceil(monDate/7);
+}
+
+// Which cartola types are active for a given date?
+// Odd weeks (1,3,5) = Semana 1, Even weeks (2,4) = Semana 2
+function tiposActivos(ts){
+  const wom=weekOfMonth(ts);
+  const tipos=['Semanal'];
+  if(wom%2===1) tipos.push('Semana 1'); // weeks 1,3,5
+  if(wom%2===0) tipos.push('Semana 2'); // weeks 2,4
+  return tipos;
+}
+
+// Day letter from date string
+const DIA_MAP={1:'L',2:'K',3:'M',4:'J',5:'V',6:'S',0:'D'};
+function diaLetra(ts){
+  return DIA_MAP[new Date(ts+'T12:00:00').getDay()]||'';
+}
+
+// Get all dates in a range of data
+function allDatesInData(d){
+  return [...new Set(d.map(x=>x.ts))].sort();
+}
+
+// For a given date, which cartola entries should be visited?
+function metaParaFecha(ts){
+  const letra=diaLetra(ts);
+  const tipos=tiposActivos(ts);
+  return CARTOLA.filter(c=>c.dia===letra&&tipos.includes(c.semana_tipo));
+}
+
+function renderCumplimiento(d){
+  const weeks=[...new Set(d.map(x=>getWeek(x.ts)))].sort();
+  const lw=weeks[weeks.length-1]||'';
+  const twData=d.filter(x=>getWeek(x.ts)===lw);
+
+  const cartolaVisoras=[...new Set(CARTOLA.map(c=>c.visora))].sort();
+
+  // Get all dates in current week from data
+  const weekDates=allDatesInData(twData);
+
+  const rows=cartolaVisoras.map((v,i)=>{
+    const asignadas=CARTOLA.filter(c=>c.visora===v);
+
+    // Meta real de la semana: tiendas que les toca esta semana según día y tipo
+    let metaSet=new Set();
+    weekDates.forEach(ts=>{
+      const letra=diaLetra(ts);
+      const tipos=tiposActivos(ts);
+      asignadas.filter(c=>c.dia===letra&&tipos.includes(c.semana_tipo)).forEach(c=>metaSet.add(c.tienda_num));
+    });
+    // Also add pending days in this week not yet in data
+    const today=new Date();
+    const lw_date=new Date(lw+'T12:00:00');
+    for(let i=0;i<6;i++){
+      const d2=new Date(lw_date);d2.setDate(lw_date.getDate()+i);
+      if(d2>today)break;
+      const ts=d2.toISOString().slice(0,10);
+      if(!weekDates.includes(ts)){
+        const letra=DIA_MAP[d2.getDay()]||'';
+        const tipos=tiposActivos(ts);
+        asignadas.filter(c=>c.dia===letra&&tipos.includes(c.semana_tipo)).forEach(c=>metaSet.add(c.tienda_num));
+      }
+    }
+    const metaSem=metaSet.size||asignadas.filter(c=>c.semana_tipo==='Semanal').length;
+
+    const visitadasSem=new Set(twData.filter(x=>asignadas.some(c=>c.tienda_num===x.tienda_num)).map(x=>x.tienda_num)).size;
+    const cumpl=metaSem?Math.round(visitadasSem/metaSem*100):0;
+    const visorData=twData.filter(x=>asignadas.some(c=>c.tienda_num===x.tienda_num));
+    const score=calcScore(visorData);
+    return {visora:v,asignadas:asignadas.length,metaSem,visitadasSem,cumpl,score,idx:i};
+  });
+
+  dc('cMeta');
+  charts.cMeta=new Chart(document.getElementById('cMeta'),{
+    type:'bar',
+    data:{labels:rows.map(r=>r.visora.split(' ')[0]),datasets:[
+      {label:'Realizadas',data:rows.map(r=>r.visitadasSem),backgroundColor:'#0f1f3d',borderSkipped:false},
+      {label:'Meta',data:rows.map(r=>r.metaSem),backgroundColor:'#c9a84c',borderSkipped:false}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:10}}},y:{beginAtZero:true,ticks:{stepSize:1,font:{size:11}}}}}
+  });
+
+  dc('cCumpl');
+  charts.cCumpl=new Chart(document.getElementById('cCumpl'),{
+    type:'bar',
+    data:{labels:rows.map(r=>r.visora.split(' ')[0]),datasets:[{
+      data:rows.map(r=>r.cumpl),
+      backgroundColor:rows.map(r=>r.cumpl>=80?'#2d7d46':r.cumpl>=60?'#c9a84c':'#9b2020'),
+      borderSkipped:false
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.raw}%`}}},
+      scales:{x:{ticks:{font:{size:10}}},y:{beginAtZero:true,max:100,ticks:{callback:v=>v+'%',font:{size:11}}}}}
+  });
+
+  const tCumplEl=document.querySelector('#tCumpl tbody');if(!tCumplEl)return;
+  tCumplEl.innerHTML=rows.map((r,i)=>`<tr>
+    <td><div class="vc"><div class="avatar" style="background:${AVB[i%AVB.length]};color:${PAL[i%PAL.length]}">${initials(r.visora)}</div><span>${r.visora}</span></div></td>
+    <td style="text-align:center">${r.asignadas}</td>
+    <td style="text-align:center;font-weight:700">${r.visitadasSem}</td>
+    <td style="text-align:center">${r.metaSem}</td>
+    <td style="text-align:center"><span class="badge ${r.cumpl>=80?'b-good':r.cumpl>=60?'b-warn':'b-bad'}">${r.cumpl}%</span></td>
+    <td style="text-align:center">${r.visitadasSem} / ${r.asignadas}</td>
+    <td style="text-align:center">${r.score!==null?`<span class="badge ${r.score>=80?'b-good':r.score>=50?'b-warn':'b-bad'}">${r.score}/100</span>`:'–'}</td>
+  </tr>`).join('');
+}
+
+function renderEfectividad(d){
+  // Daily effectiveness: for each date in data, compare visited vs expected
+  const dates=allDatesInData(d);
+  const efectividad=dates.map(ts=>{
+    const meta=metaParaFecha(ts);
+    const visitadas=new Set(d.filter(x=>x.ts===ts).map(x=>x.tienda_num));
+    const realizadas=meta.filter(c=>visitadas.has(c.tienda_num)).length;
+    const pctEf=meta.length?Math.round(realizadas/meta.length*100):0;
+    return {ts,meta:meta.length,realizadas,pctEf};
+  });
+
+  // Render effectiveness chart
+  const existingCard=document.getElementById('efectividadCard');
+  if(!existingCard)return;
+
+  dc('cEfect');
+  charts.cEfect=new Chart(document.getElementById('cEfect'),{
+    type:'line',
+    data:{
+      labels:efectividad.map(e=>fmtDate(e.ts)),
+      datasets:[
+        {label:'Efectividad %',data:efectividad.map(e=>e.pctEf),borderColor:'#0f1f3d',backgroundColor:'rgba(15,31,61,0.08)',tension:0.3,fill:true,pointBackgroundColor:'#0f1f3d'},
+        {label:'Meta visitas',data:efectividad.map(e=>e.meta),borderColor:'#c9a84c',borderDash:[4,4],tension:0,yAxisID:'y2',pointBackgroundColor:'#c9a84c'},
+        {label:'Realizadas',data:efectividad.map(e=>e.realizadas),borderColor:'#2d7d46',tension:0.3,pointBackgroundColor:'#2d7d46',yAxisID:'y2'}
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{font:{size:11}}}},
+      scales:{
+        y:{min:0,max:100,ticks:{callback:v=>v+'%',font:{size:11}},title:{display:true,text:'Efectividad'}},
+        y2:{position:'right',beginAtZero:true,ticks:{stepSize:1,font:{size:11}},title:{display:true,text:'Visitas'},grid:{drawOnChartArea:false}}
+      }
+    }
+  });
+
+  // Table
+  const tEfEl=document.querySelector('#tEfectividad tbody');
+  if(!tEfEl)return;
+  tEfEl.innerHTML=efectividad.map(e=>`<tr>
+    <td>${fmtDate(e.ts)}</td>
+    <td style="text-align:center">${e.meta}</td>
+    <td style="text-align:center">${e.realizadas}</td>
+    <td style="text-align:center"><span class="badge ${e.pctEf>=80?'b-good':e.pctEf>=60?'b-warn':'b-bad'}">${e.pctEf}%</span></td>
+    <td style="text-align:center">${e.meta-e.realizadas>0?`<span style="color:#9b2020">${e.meta-e.realizadas} pendientes</span>`:'<span style="color:#2d7d46">✓ Completo</span>'}</td>
+  </tr>`).join('');
+}
+
+function renderSinVisita(d){
+  const today=new Date().toISOString().slice(0,10);
+  const todayLocal=new Date();
+  const todayStr=todayLocal.getFullYear()+'-'+(todayLocal.getMonth()+1).toString().padStart(2,'0')+'-'+todayLocal.getDate().toString().padStart(2,'0');
+  const useDate=todayStr; // use local date not UTC
+  console.log('today UTC:',today,'today local:',todayStr,'diaLetra:',diaLetra(todayStr),'wom:',weekOfMonth(todayStr),'tipos:',tiposActivos(todayStr));
+  const visitadasHoy=new Set(d.filter(x=>x.ts===useDate).map(x=>x.tienda_num));
+  const metaHoy=metaParaFecha(useDate);
+  const sinVisitaHoy=metaHoy.filter(c=>!visitadasHoy.has(c.tienda_num));
+
+  document.getElementById('tSinVisitaTitle').textContent=`Tiendas pendientes hoy (${sinVisitaHoy.length} de ${metaHoy.length} programadas)`;
+  const tSinEl=document.querySelector('#tSinVisita tbody');if(!tSinEl)return;
+  tSinEl.innerHTML=sinVisitaHoy.length?sinVisitaHoy.map((c,i)=>`<tr>
+    <td style="color:var(--text-ter)">${i+1}</td>
+    <td><strong>${c.nombre}</strong></td>
+    <td>${c.visora}</td>
+    <td style="text-align:center"><span class="badge b-warn">${c.dia}</span></td>
+    <td style="text-align:center"><span class="badge ${c.semana_tipo==='Semanal'?'b-good':'b-warn'}">${c.semana_tipo}</span></td>
+  </tr>`).join(''):'<tr><td colspan="5" style="text-align:center;color:#2d7d46;padding:1rem">✓ Todas las visitas del día completadas</td></tr>';
+}
+
+function renderAll(){
+  const d=getFiltered();
+  renderKPIs(d);
+  renderIndicadores(d);
+  renderDiario(d);
+  renderTablaVisoras(d);
+  renderCumplimiento(d);
+  renderEfectividad(d);
+  renderSinVisita(d);
+}
+
+function switchTab(id,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-'+id).classList.add('active');
+}
+
+async function loadData(){
+  document.getElementById('loadingBox').style.display='block';
+  document.getElementById('content').style.display='none';
+  document.getElementById('lastUpdate').textContent='Actualizando...';
+  try{
+    const res=await fetch(CSV_URL+'&t='+Date.now());
+    if(!res.ok)throw new Error('Error HTTP '+res.status);
+    const txt=await res.text();
+    allData=parseCSV(txt);
+    if(!allData.length)throw new Error('Sin datos');
+    initFilters();
+    document.getElementById('loadingBox').style.display='none';
+    document.getElementById('content').style.display='block';
+    const now=new Date();
+    document.getElementById('lastUpdate').textContent=`Actualizado: ${now.toLocaleDateString('es-CR')} ${now.toLocaleTimeString('es-CR',{hour:'2-digit',minute:'2-digit'})}`;
+    renderAll();
+  }catch(e){
+    document.getElementById('loadingBox').innerHTML=`<p style="color:#9b2020">⚠️ No se pudo cargar el Sheet.<br><small>${e.message}</small></p><button class="btn-refresh" onclick="loadData()" style="margin-top:1rem">Reintentar</button>`;
+  }
+}
+loadData();
+</script>
+</body>
+</html>
